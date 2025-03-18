@@ -48,8 +48,7 @@
         "twig/twig": "^2.10.0"
     },
     "conflict": {
-        "behat/mink-selenium2-driver": ">=1.7.0",
-        "doctrine/persistence": "<3.0"
+        "behat/mink-selenium2-driver": ">=1.7.0"
     },
     "config": {
         "sort-packages": true,
