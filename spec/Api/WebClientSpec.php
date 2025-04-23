@@ -13,7 +13,7 @@ namespace spec\BitBag\SyliusInPostPlugin\Api;
 use BitBag\SyliusInPostPlugin\Api\WebClient;
 use BitBag\SyliusInPostPlugin\Api\WebClientInterface;
 use BitBag\SyliusShippingExportPlugin\Entity\ShippingGatewayInterface;
-use Psr\Http\Client\ClientInterface;
+use GuzzleHttp\Client;
 use PhpSpec\ObjectBehavior;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -31,7 +31,7 @@ final class WebClientSpec extends ObjectBehavior
     public const PARCEL_TEMPLATE = "medium";
 
     public function let(
-        ClientInterface $client,
+        Client $client,  // Use Guzzle Client instead of ClientInterface
         RequestFactoryInterface $requestFactory,
         StreamFactoryInterface $streamFactory,
     ): void

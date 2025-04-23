@@ -1,12 +1,5 @@
 <?php
 
-/*
- * This file has been created by developers from BitBag.
- * Feel free to contact us once you face any issues or want to start
- * You can find more information about us on https://bitbag.io and write us
- * an email on hello@bitbag.io.
- */
-
 declare(strict_types=1);
 
 namespace BitBag\SyliusInPostPlugin\Api;
@@ -16,10 +9,10 @@ use BitBag\SyliusInPostPlugin\Entity\ShippingExportInterface;
 use BitBag\SyliusInPostPlugin\Exception\InvalidInPostResponseException;
 use BitBag\SyliusInPostPlugin\Model\InPostPointsAwareInterface;
 use BitBag\SyliusShippingExportPlugin\Entity\ShippingGatewayInterface;
-use Psr\Http\Client\ClientExceptionInterface;
-use Psr\Http\Client\ClientInterface;
-use Psr\Http\Message\RequestFactoryInterface;
-use Psr\Http\Message\StreamFactoryInterface;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Utils;
 use Sylius\Component\Core\Model\AddressInterface;
 use Sylius\Component\Core\Model\CustomerInterface;
 use Sylius\Component\Core\Model\OrderInterface;
@@ -28,17 +21,13 @@ use Webmozart\Assert\Assert;
 
 final class WebClient implements WebClientInterface
 {
-    private ClientInterface $apiClient;
+    private Client $apiClient;
 
-    private RequestFactoryInterface $requestFactory;
+    private string $organizationId;
 
-    private StreamFactoryInterface $streamFactory;
+    private string $accessToken;
 
-    private ?string $organizationId = null;
-
-    private ?string $accessToken = null;
-
-    private ?string $environment = null;
+    private string $environment;
 
     private ShippingGatewayInterface $shippingGateway;
 
@@ -47,15 +36,11 @@ final class WebClient implements WebClientInterface
     private string $parcelTemplate;
 
     public function __construct(
-        ClientInterface $client,
-        RequestFactoryInterface $requestFactory,
-        StreamFactoryInterface $streamFactory,
+        Client $client,  // Using Guzzle Client directly
         string $labelType,
         string $parcelTemplate,
     ) {
         $this->apiClient = $client;
-        $this->requestFactory = $requestFactory;
-        $this->streamFactory = $streamFactory;
         $this->labelType = $labelType;
         $this->parcelTemplate = $parcelTemplate;
     }
@@ -206,10 +191,6 @@ final class WebClient implements WebClientInterface
         ];
     }
 
-    /**
-     * @throws InvalidInPostResponseException
-     * @throws ClientExceptionInterface
-     */
     public function request(
         string $method,
         string $url,
@@ -219,35 +200,30 @@ final class WebClient implements WebClientInterface
         $header = $this->getAuthorizedHeaderWithContentType();
 
         try {
-            $request = $this->requestFactory
-                ->createRequest($method, $url)
-                ->withHeader('Content-Type', $header['Content-Type'])
-                ->withHeader('Authorization', $header['Authorization'])
-                ->withBody($this->streamFactory->createStream(json_encode($data)));
+            $request = new Request(
+                $method,
+                $url,
+                $header,
+                Utils::streamFor(json_encode($data))
+            );
 
-            $result = $this->apiClient->sendRequest($request);
-            $response = json_decode((string) $result->getBody(), true);
-            if (200 !== $result->getStatusCode() && 201 !== $result->getStatusCode()) {
+            // Send the request using Guzzle
+            $response = $this->apiClient->send($request);
+            $responseBody = (string) $response->getBody();
+
+            if ($response->getStatusCode() !== 200 && $response->getStatusCode() !== 201) {
                 throw new InvalidInPostResponseException();
             }
-        } catch (InvalidInPostResponseException $e) {
-            $error_details = $response['details'] ?? '[]';
 
-            throw new InvalidInPostResponseException(
-                sprintf(
-                    '%s %s; details: %s',
-                    $e->getMessage(),
-                    $e->getErrorMessage(),
-                    print_r($error_details, true),
-                ),
-            );
+            if (!$returnJson) {
+                return $responseBody;
+            }
+
+            return json_decode($responseBody, true);
+        } catch (RequestException $e) {
+            // Handle exceptions (e.g., network errors)
+            throw new InvalidInPostResponseException('Request failed: ' . $e->getMessage());
         }
-
-        if (false === $returnJson) {
-            return (string) $result->getBody();
-        }
-
-        return $response;
     }
 
     private function getAdditionalServices(): array

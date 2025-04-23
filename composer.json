@@ -10,7 +10,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.0",
-        "bitbag/shipping-export-plugin": "^2.0.1",
+        "bitbag/shipping-export-plugin": "~3.0",
+        "guzzlehttp/guzzle": "6.5.8",
         "sylius/sylius": "~1.11.0 || ~1.12.0 || ~1.13.0"
     },
     "require-dev": {
